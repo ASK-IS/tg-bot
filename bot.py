@@ -1,14 +1,36 @@
 import asyncio
+import string
 from datetime import datetime, timedelta
 
+import nltk
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import Command
-from aiogram.types import Message, ReactionTypeEmoji
+from aiogram.types import Message, ReactionTypeEmoji, User
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+
+nltk.download('punkt_tab')
+nltk.download('stopwords')
 
 
-def convert_to_mention(user):
+def convert_to_mention(user: User):
+    """Вытаскивает упоминание пользователя из объекта User"""
     return f'@{user.username}' if user.username else f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
+
+
+def is_spam(message: str) -> bool:
+    """Проверяет, является ли сообщение спамом"""
+    message = message.translate(str.maketrans('', '', string.punctuation))  # удаляем пунктуацию
+    words = word_tokenize(message)  # токенизируем сообщение
+    words = [word for word in words if word.lower() not in stopwords.words('russian')]  # удаляем стоп-слова
+
+    if not words:
+        return True
+    if len(words) < 3:
+        return True
+
+    return False
 
 
 router = Router()
@@ -24,8 +46,10 @@ async def start(msg: Message):
 
 @router.message(F.text, F.chat.type == 'private')
 async def question(msg: Message):
-    if msg.text and not msg.text.startswith('Полтергейст'):
-        if len(msg.text) < 10:
+    assert msg.from_user
+
+    if msg.text and not msg.text.lower().startswith('полтергейст'):
+        if is_spam(msg.text):
             return
         if (last_time := USERS_COOLDOWN.get(msg.from_user.id)) and datetime.now() < last_time + timedelta(minutes=5):
             await msg.react([ReactionTypeEmoji(emoji='🙊')])
