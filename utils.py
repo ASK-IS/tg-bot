@@ -4,7 +4,7 @@ from contextlib import suppress
 from functools import partial
 from typing import Callable
 
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNotFound, TelegramRetryAfter
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.filters import Filter
 from aiogram.types import Message, User
 from nltk.corpus import stopwords
@@ -45,7 +45,7 @@ class AdminFilter(Filter):
     """Фильтр для проверки, является ли пользователь администратором бота (т.е. участником админ-канал)"""
 
     async def __call__(self, resp: Message):
-        with suppress(TelegramNotFound):
+        with suppress(TelegramBadRequest):
             await bot.get_chat_member(ADMIN_CHAT, resp.from_user.id)
             return True
         return False

@@ -5,7 +5,6 @@ import nltk
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
-
 logging.basicConfig(
     format='[%(asctime)s] - %(levelname)s\t| %(message)s',
     force=True,
