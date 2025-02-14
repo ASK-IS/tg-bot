@@ -15,36 +15,48 @@ router = Router()
 @router.message(F.text.startswith('/start'), F.chat.type == 'private')
 async def start(msg: Message):
     """Отправляет стартовое сообщение"""
-    await msg.answer(START_MSG)
+    await msg.answer(START_MSG, disable_web_page_preview=True)
     save_unique_user(msg.from_user.id)
 
 
 @router.message(F.text, F.chat.type == 'private')
+@router.message(F.audio | F.video_note | F.photo | F.document | F.video | F.voice, F.chat.type == 'private')
 async def question(msg: Message):
     """Отправляет нам вопрос студента"""
     assert msg.from_user
+    user_id, msg_id = msg.from_user.id, msg.message_id
 
-    if msg.text and not msg.text.lower().startswith('полтергейст'):
-        if is_spam(msg.text):
+    question_content = msg.text or msg.caption
+
+    if question_content and not question_content.lower().startswith('полтергейст'):
+        if is_spam(question_content):
             await msg.react([ReactionTypeEmoji(emoji='👎')])
             return
-        if (last_time := USERS_COOLDOWN.get(msg.from_user.id)) and datetime.now() < last_time + timedelta(minutes=5):
+        if (cd_user := USERS_COOLDOWN.get(user_id)) and datetime.now() < cd_user['last_time'] + timedelta(minutes=5):
             await msg.react([ReactionTypeEmoji(emoji='🙊')])
-            await msg.answer(WAIT5_MSG)
+            if not cd_user['is_msg_sent']:
+                await msg.answer(WAIT5_MSG)
+                cd_user['is_msg_sent'] = True
             return
+    if msg.audio or msg.video_note:
+        await msg.react([ReactionTypeEmoji(emoji='👎')])
+        return
 
-    await bot.send_message(
-        ADMIN_CHAT,
-        Q_MSG.format(u=convert_to_mention(msg.from_user), q=msg.html_text, uid=msg.from_user.id, mid=msg.message_id),
-    )
+    question_content = msg.html_text or msg.caption or ''
+    text = Q_MSG.format(convert_to_mention(msg.from_user), question_content, user_id, msg_id)
+    if any([msg.photo, msg.document, msg.video, msg.voice]):
+        await bot.copy_message(ADMIN_CHAT, user_id, msg_id, caption=text)
+    else:
+        await bot.send_message(ADMIN_CHAT, text)
 
-    USERS_COOLDOWN[msg.from_user.id] = datetime.now()
+    USERS_COOLDOWN[user_id] = {'last_time': datetime.now(), 'is_msg_sent': False}
 
     await msg.react([ReactionTypeEmoji(emoji='👍')])
-    logging.info(f'Question from {msg.from_user.id} {msg.message_id} sent to admin chat')
+    logging.info(f'Question from {user_id} - {msg_id} sent to admin chat')
 
 
 @router.edited_message(F.text, F.from_user, F.chat.type == 'private')
+@router.edited_message(F.caption, F.from_user, F.chat.type == 'private')
 async def edit_warning(msg: Message):
     """Отправляет сообщение о том, что редактированные сообщения не доходят"""
     await msg.answer(NOEDITS_MSG)

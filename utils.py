@@ -1,8 +1,9 @@
 import asyncio
 import string
 from contextlib import suppress
+from datetime import datetime
 from functools import partial
-from typing import Callable
+from typing import Callable, TypedDict
 
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramRetryAfter
 from aiogram.filters import Filter
@@ -17,6 +18,7 @@ def is_spam(message: str) -> bool:
     """Проверяет, является ли сообщение спамом"""
     message = message.translate(str.maketrans('', '', string.punctuation))  # удаляем пунктуацию
     words = word_tokenize(message, 'russian')  # токенизируем сообщение
+
     stop_words = stopwords.words('russian') + get_bad_words()  # объединяем стоп-слова и плохие слова
     words = list(filter(lambda word: word.lower() not in stop_words, words))  # удаляем стоп-слова
 
@@ -73,3 +75,8 @@ async def retry_func(func: Callable, *args, **kwargs):
         return await function()
     except (TelegramBadRequest, TelegramForbiddenError):
         pass
+
+
+class UserCooldown(TypedDict):
+    last_time: datetime
+    is_msg_sent: bool
