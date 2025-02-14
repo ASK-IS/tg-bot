@@ -16,8 +16,9 @@ from config import ADMIN_CHAT, bot
 def is_spam(message: str) -> bool:
     """Проверяет, является ли сообщение спамом"""
     message = message.translate(str.maketrans('', '', string.punctuation))  # удаляем пунктуацию
-    words = word_tokenize(message)  # токенизируем сообщение
-    words = [word for word in words if word.lower() not in stopwords.words('russian')]  # удаляем стоп-слова
+    words = word_tokenize(message, 'russian')  # токенизируем сообщение
+    stop_words = stopwords.words('russian') + get_bad_words()  # объединяем стоп-слова и плохие слова
+    words = list(filter(lambda word: word.lower() not in stop_words, words))  # удаляем стоп-слова
 
     if not words:
         return True
@@ -25,6 +26,12 @@ def is_spam(message: str) -> bool:
         return True
 
     return False
+
+
+def get_bad_words() -> list[str]:
+    """Возвращает список плохих слов"""
+    with open('bad_words.txt', 'r') as file:
+        return [line.strip() for line in file.readlines() if line]
 
 
 def save_unique_user(user_id: int):
