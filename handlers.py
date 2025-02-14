@@ -5,11 +5,13 @@ from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.types import Message, ReactionTypeEmoji
 
-from config import (ADMIN_CHAT, IS_READY_FOR_MAILING, MAILING_MSG_IDS, MREADY_MSG, NOEDITS_MSG, Q_MSG, START_MSG,
-                    USERS_COOLDOWN, WAIT5_MSG, bot)
+from config import (ADMIN_CHAT, MAILING_DIALOG, MALREADY_MSG, MREADY_MSG, NOEDITS_MSG, Q_MSG, START_MSG, USERS_COOLDOWN,
+                    WAIT5_MSG, bot)
 from utils import AdminFilter, convert_to_mention, get_unique_users, is_spam, save_unique_user
 
 router = Router()
+admin_router = Router()
+admin_router.message.filter(F.chat.type == 'private', AdminFilter())
 
 
 @router.message(F.text.startswith('/start'), F.chat.type == 'private')
@@ -81,42 +83,44 @@ async def answer_question(msg: Message):
     logging.info(f'Answer to {user_id} {msg_id} sent')
 
 
-@router.message(Command('mailing'), F.chat.type == 'private', AdminFilter(), lambda: not IS_READY_FOR_MAILING)
+@admin_router.message(Command('mailing'), lambda _: not MAILING_DIALOG['is_ready'])
 async def start_mailing_dialog(msg: Message):
     """Запускает диалог рассылки"""
-    global IS_READY_FOR_MAILING
-
     await msg.answer(MREADY_MSG)
-    IS_READY_FOR_MAILING = True
+    MAILING_DIALOG['is_ready'] = True
+    MAILING_DIALOG['user_id'] = msg.from_user.id
 
     logging.info('Mailing dialog started')
 
 
-@router.message(F.text, F.chat.type == 'private', AdminFilter(), lambda: IS_READY_FOR_MAILING)
-async def collect_mailing(msg: Message):
-    """Собирает сообщения для рассылки"""
-    MAILING_MSG_IDS.append(msg.message_id)
-
-
-@router.message(Command('mailing'), F.chat.type == 'private', AdminFilter(), lambda: IS_READY_FOR_MAILING)
+@admin_router.message(Command('mailing'), lambda _: MAILING_DIALOG['is_ready'])
 async def mailing(msg: Message):
     """Начинает рассылку при запущенном диалоге рассылки или останавливает диалог рассылки"""
-    global IS_READY_FOR_MAILING, MAILING_MSG_IDS
+    if MAILING_DIALOG['user_id'] != msg.from_user.id:
+        await msg.answer(MALREADY_MSG)
 
-    IS_READY_FOR_MAILING = False
+    MAILING_DIALOG['is_ready'] = False
 
-    if not MAILING_MSG_IDS:
+    if not MAILING_DIALOG['msg_ids']:
         await msg.react([ReactionTypeEmoji(emoji='👌')])
         return
 
     await msg.react([ReactionTypeEmoji(emoji='✍️')])
     for user_id in get_unique_users():
-        await bot.copy_messages(user_id, ADMIN_CHAT, MAILING_MSG_IDS)
+        await bot.copy_messages(user_id, MAILING_DIALOG['user_id'], MAILING_DIALOG['msg_ids'])
     await msg.react([ReactionTypeEmoji(emoji='👍')])
 
-    MAILING_MSG_IDS = []
+    MAILING_DIALOG['msg_ids'] = []
+    MAILING_DIALOG['user_id'] = 0
 
     logging.info('Mailing sent')
+
+
+@admin_router.message(F.text, lambda _: MAILING_DIALOG['is_ready'])
+async def collect_mailing(msg: Message):
+    """Собирает сообщения для рассылки"""
+    MAILING_DIALOG['msg_ids'].append(msg.message_id)
+    await msg.react([ReactionTypeEmoji(emoji='👀')])
 
 
 # @router.message(Command('ban'), F.message_thread_id)

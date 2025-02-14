@@ -1,11 +1,11 @@
 import asyncio
 
 from config import bot, dp
-from handlers import router
+from handlers import admin_router, router
 
 
 async def main():
-    dp.include_router(router)
+    dp.include_routers(admin_router, router)
     await dp.start_polling(bot, handle_as_tasks=False, allowed_updates=dp.resolve_used_update_types())
 
 

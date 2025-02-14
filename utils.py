@@ -80,3 +80,9 @@ async def retry_func(func: Callable, *args, **kwargs):
 class UserCooldown(TypedDict):
     last_time: datetime
     is_msg_sent: bool
+
+
+class MailingDialog(TypedDict):
+    user_id: int
+    is_ready: bool
+    msg_ids: list[int]

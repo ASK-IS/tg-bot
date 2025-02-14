@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 
 if TYPE_CHECKING:
-    from utils import UserCooldown
+    from utils import UserCooldown, MailingDialog
 
 logging.basicConfig(
     format='[%(asctime)s] - %(levelname)s\t| %(message)s',
@@ -21,11 +21,11 @@ WAIT5_MSG = 'Подождите 5 минут перед отправкой сл�
 NOEDITS_MSG = '⚠️ Отредактированные сообщения не дойдут до нас. Если ты хочешь исправить твоё прошлое сообщение, то затем отправь его ещё раз.'
 Q_MSG = '<b>Вопрос от {}</b>\n\n{}\n\n<tg-spoiler>{} {}</tg-spoiler>'
 MREADY_MSG = '<b>Запущен диалог рассылки!</b>\n\nОтправь сообщение, которое ты хочешь разослать, и напиши ещё раз /mailing.\nЕсли передумаешь, обязательно ещё раз отправь /mailing!\n\n⚠️ Кастомные эмодзи будут конвертированы в обычные!'
+MALREADY_MSG = '⚠️ Диалог рассылки запущен другим пользователем!'
 
 ADMIN_CHAT = -1002367372290
 USERS_COOLDOWN: dict[int, 'UserCooldown'] = {}
-IS_READY_FOR_MAILING = False
-MAILING_MSG_IDS = []
+MAILING_DIALOG: 'MailingDialog' = {'user_id': 0, 'is_ready': False, 'msg_ids': []}
 
 
 nltk.download('punkt_tab')
