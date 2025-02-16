@@ -7,7 +7,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Execute SSH Commands
         uses: GPTED/SSH-My-Action@0.1
