@@ -38,10 +38,10 @@ def get_bad_words() -> list[str]:
 
 def save_unique_user(user_id: int):
     """Сохраняет уникального пользователя в файл"""
-    with open('users.txt', 'a+') as file:
-        if str(user_id) in file.read():
-            return
-        file.writelines([f'{user_id}'])
+    if user_id in get_unique_users():
+        return
+    with open('users.txt', 'a') as file:
+        file.write(f'{user_id}\n')
 
 
 def get_unique_users() -> list[int]:
