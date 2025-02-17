@@ -73,8 +73,11 @@ async def answer_question(msg: Message):
         await msg.react([ReactionTypeEmoji(emoji='💩')], True)
         return
 
-    user_id, msg_id = map(int, msg.reply_to_message.text.rsplit('\n')[-1].split())
-    await bot.send_message(user_id, msg.html_text.removeprefix('/answer '), reply_to_message_id=msg_id)
+    question_text = msg.reply_to_message.text or msg.reply_to_message.caption
+    assert question_text
+
+    user_id, msg_id = map(int, question_text.rsplit('\n')[-1].split())
+    await bot.send_message(user_id, msg.html_text.removeprefix('/answer'), reply_to_message_id=msg_id)
 
     if user_id in USERS_COOLDOWN:
         del USERS_COOLDOWN[user_id]
