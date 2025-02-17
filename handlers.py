@@ -76,7 +76,7 @@ async def answer_question(msg: Message):
     question_text = msg.reply_to_message.text or msg.reply_to_message.caption
     assert question_text
 
-    paragraphs = question_text.rsplit('\n')
+    paragraphs = list(filter(lambda s: bool(s), question_text.split('\n')))
     user_id, msg_id = map(int, paragraphs[-2].split() if '#' in paragraphs[-1] else paragraphs[-1].split())
     await bot.send_message(user_id, msg.html_text.removeprefix('/answer'), reply_to_message_id=msg_id)
 
