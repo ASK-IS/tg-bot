@@ -76,7 +76,8 @@ async def answer_question(msg: Message):
     question_text = msg.reply_to_message.text or msg.reply_to_message.caption
     assert question_text
 
-    user_id, msg_id = map(int, question_text.rsplit('\n')[-1].split())
+    paragraphs = question_text.rsplit('\n')
+    user_id, msg_id = map(int, paragraphs[-2].split() if '#' in paragraphs[-1] else paragraphs[-1].split())
     await bot.send_message(user_id, msg.html_text.removeprefix('/answer'), reply_to_message_id=msg_id)
 
     if user_id in USERS_COOLDOWN:
