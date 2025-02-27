@@ -32,6 +32,9 @@ async def question(msg: Message):
 
     if question_content and not question_content.lower().startswith('полтергейст'):
         if is_spam(question_content):
+            if 'спасибо' in question_content.lower():
+                await msg.react([ReactionTypeEmoji(emoji='❤')])
+                return
             await msg.react([ReactionTypeEmoji(emoji='👎')])
             return
         if (cd_user := USERS_COOLDOWN.get(user_id)) and datetime.now() < cd_user['last_time'] + timedelta(minutes=5):
