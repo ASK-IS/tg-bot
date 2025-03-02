@@ -36,6 +36,6 @@ MAILING_DIALOG: 'MailingDialog' = {'user_id': 0, 'is_ready': False, 'msg_ids': [
 nltk.download('punkt_tab')
 nltk.download('stopwords')
 
-# bot = Bot(token='8124549178:AAGoWofJCCLacPiMxcNsPOZoKO0lmGPcJmQ', default=DefaultBotProperties(parse_mode='HTML'))
-bot = Bot(token='5101303789:AAHu9dlfAmzOSuY6zRtFCyQlncYX2RvPSck', default=DefaultBotProperties(parse_mode='HTML'))
+bot = Bot(token='8124549178:AAGoWofJCCLacPiMxcNsPOZoKO0lmGPcJmQ', default=DefaultBotProperties(parse_mode='HTML'))
+# bot = Bot(token='5101303789:AAHu9dlfAmzOSuY6zRtFCyQlncYX2RvPSck', default=DefaultBotProperties(parse_mode='HTML'))
 dp = Dispatcher()
