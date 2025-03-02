@@ -1,12 +1,27 @@
 import logging
+import random
 from datetime import datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.types import Message, ReactionTypeEmoji
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message, ReactionTypeEmoji
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from config import (ADMIN_CHAT, MAILING_DIALOG, MALREADY_MSG, MREADY_MSG, NOEDITS_MSG, Q_MSG, START_MSG, USERS_COOLDOWN,
-                    WAIT5_MSG, bot)
+from config import (
+    ADMIN_CHAT,
+    EMOJI_SET,
+    MAILING_DIALOG,
+    MALREADY_MSG,
+    MREADY_MSG,
+    NOEDITS_MSG,
+    PENDING_MSG,
+    Q_MSG,
+    START_MSG,
+    USERS_COOLDOWN,
+    USERS_TOPICS,
+    WAIT5_MSG,
+    bot,
+)
 from utils import AdminFilter, convert_to_mention, get_unique_users, is_spam, save_unique_user
 
 router = Router()
@@ -25,7 +40,6 @@ async def start(msg: Message):
 @router.message(F.audio | F.video_note | F.photo | F.document | F.video | F.voice, F.chat.type == 'private')
 async def question(msg: Message):
     """Отправляет нам вопрос студента"""
-    assert msg.from_user
     user_id, msg_id = msg.from_user.id, msg.message_id
 
     question_content = msg.text or msg.caption
@@ -47,14 +61,24 @@ async def question(msg: Message):
         await msg.react([ReactionTypeEmoji(emoji='👎')])
         return
 
-    question_content = msg.html_text or msg.caption or ''
-    text = Q_MSG.format(convert_to_mention(msg.from_user), question_content, user_id, msg_id)
-    if any([msg.photo, msg.document, msg.video, msg.voice]):
-        await bot.copy_message(ADMIN_CHAT, user_id, msg_id, caption=text)
+    if user_id in USERS_TOPICS and datetime.now() < USERS_TOPICS[user_id]['last_time'] + timedelta(days=1):
+        thread_id = USERS_TOPICS[user_id]['topic_id']
     else:
-        await bot.send_message(ADMIN_CHAT, text)
+        topic = await bot.create_forum_topic(
+            ADMIN_CHAT, f'Вопрос от {convert_to_mention(msg.from_user)}', icon_custom_emoji_id='5379748062124056162'
+        )
+        thread_id = topic.message_thread_id
+
+    question_content = msg.html_text or msg.caption or ''
+    text = Q_MSG.format(question_content, user_id, msg_id)
+    if any([msg.photo, msg.document, msg.video, msg.voice]):
+        new_msg = await bot.copy_message(ADMIN_CHAT, user_id, msg_id, thread_id, text)
+    else:
+        new_msg = await bot.send_message(ADMIN_CHAT, text, message_thread_id=thread_id)
+    await new_msg.pin()
 
     USERS_COOLDOWN[user_id] = {'last_time': datetime.now(), 'is_msg_sent': False}
+    USERS_TOPICS[user_id] = {'topic_id': thread_id, 'msg_id': msg_id, 'last_time': datetime.now()}
 
     await msg.react([ReactionTypeEmoji(emoji='👍')])
     logging.info(f'Question from {user_id} - {msg_id} sent to admin chat')
@@ -67,21 +91,97 @@ async def edit_warning(msg: Message):
     await msg.answer(NOEDITS_MSG)
 
 
+@router.message(Command('pending'), F.message_thread_id)
+@router.message(Command('рассмотрение'), F.message_thread_id)
+@router.message(Command('рассмотреть'), F.message_thread_id)
+async def pending_question(msg: Message):
+    """Фиксирует топик на рассмотрение"""
+    await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5348436127038579546')
+
+    user_id, msg_id = next(
+        ((uid, data['msg_id']) for uid, data in USERS_TOPICS.items() if data['topic_id'] == msg.message_thread_id),
+        (None, None),
+    )
+    emoji_num = random.randint(0, len(EMOJI_SET) - 1)
+    board = InlineKeyboardBuilder(
+        [[InlineKeyboardButton(text='Отправить 📤️', callback_data=f'send {user_id} {msg_id} {emoji_num}')]]
+    )
+    await msg.answer(PENDING_MSG.format(EMOJI_SET[emoji_num]), reply_markup=board.as_markup())
+    await msg.react([ReactionTypeEmoji(emoji='👍')])
+
+
+@router.callback_query(F.data.startswith('send'))
+async def send_pending_question(resp: CallbackQuery):
+    """Отправляет шаблонное сообщение о том, что взято на рассмотрение"""
+
+    _, user_id, msg_id, emoji_num = resp.data.split()
+    await bot.send_message(int(user_id), PENDING_MSG.format(EMOJI_SET[int(emoji_num)]), reply_to_message_id=int(msg_id))
+    await resp.message.react([ReactionTypeEmoji(emoji='👍')])
+    await resp.message.edit_reply_markup(reply_markup=None)
+
+
+@router.message(Command('close'), F.message_thread_id)
+@router.message(Command('закрыт'), F.message_thread_id)
+@router.message(Command('закрыть'), F.message_thread_id)
+async def close_question(msg: Message):
+    """Закрывает вопрос"""
+    await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5237699328843200968')
+    await bot.close_forum_topic(ADMIN_CHAT, msg.message_thread_id)
+    await msg.react([ReactionTypeEmoji(emoji='👍')])
+
+
+@router.message(Command('reopen'), F.message_thread_id)
+@router.message(Command('переоткрыт'), F.message_thread_id)
+@router.message(Command('переоткрыть'), F.message_thread_id)
+async def reopen_question(msg: Message):
+    """Открывает вопрос"""
+    await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5379748062124056162')
+    await bot.reopen_forum_topic(ADMIN_CHAT, msg.message_thread_id)
+    await msg.react([ReactionTypeEmoji(emoji='👍')])
+
+
+@router.message(Command('achieve'), F.message_thread_id)
+@router.message(Command('реализован'), F.message_thread_id)
+@router.message(Command('реализовать'), F.message_thread_id)
+async def achieve_question(msg: Message):
+    """Отмечает вопрос как реализованный"""
+    await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5309958691854754293')
+    await bot.close_forum_topic(ADMIN_CHAT, msg.message_thread_id)
+    await msg.react([ReactionTypeEmoji(emoji='👍')])
+
+
 @router.message(Command('answer'), F.message_thread_id)
+@router.message(Command('ответ'), F.message_thread_id)
+@router.message(F.reply_to_message, F.message_thread_id)
 async def answer_question(msg: Message):
     """Пересылает ответ на вопрос студента"""
-    assert msg.message_thread_id
 
+    command_flag = '/answer' in msg.text or '/ответ' in msg.text
+
+    if not (
+        msg.reply_to_message.from_user.is_bot
+        and msg.reply_to_message.message_id != msg.message_thread_id
+        or command_flag
+    ):
+        return
     if msg.text == '/answer':
         await msg.react([ReactionTypeEmoji(emoji='💩')], True)
         return
 
-    question_text = msg.reply_to_message.text or msg.reply_to_message.caption
-    assert question_text
-
-    paragraphs = list(filter(lambda s: bool(s), question_text.split('\n')))
-    user_id, msg_id = map(int, paragraphs[-2].split() if '#' in paragraphs[-1] else paragraphs[-1].split())
-    await bot.send_message(user_id, msg.html_text.removeprefix('/answer'), reply_to_message_id=msg_id)
+    if command_flag:
+        answer = msg.html_text.removeprefix('/answer').removeprefix('/ответ').strip()
+        user_id, msg_id = next(
+            ((uid, data['msg_id']) for uid, data in USERS_TOPICS.items() if data['topic_id'] == msg.message_thread_id),
+            (None, None),
+        )
+        await bot.send_message(int(user_id), answer, reply_to_message_id=int(msg_id))
+    else:
+        question_text = msg.reply_to_message.text or msg.reply_to_message.caption
+        try:
+            user_id, msg_id = map(int, list(filter(lambda s: bool(s), question_text.split('\n')))[-1].split())
+        except ValueError:
+            return
+        await bot.send_message(user_id, msg.html_text, reply_to_message_id=msg_id)
 
     if user_id in USERS_COOLDOWN:
         del USERS_COOLDOWN[user_id]
@@ -90,6 +190,7 @@ async def answer_question(msg: Message):
     logging.info(f'Answer to {user_id} {msg_id} sent')
 
 
+@admin_router.message(Command('рассылка'), lambda _: not MAILING_DIALOG['is_ready'])
 @admin_router.message(Command('mailing'), lambda _: not MAILING_DIALOG['is_ready'])
 async def start_mailing_dialog(msg: Message):
     """Запускает диалог рассылки"""
@@ -100,6 +201,7 @@ async def start_mailing_dialog(msg: Message):
     logging.info('Mailing dialog started')
 
 
+@admin_router.message(Command('рассылка'), lambda _: MAILING_DIALOG['is_ready'])
 @admin_router.message(Command('mailing'), lambda _: MAILING_DIALOG['is_ready'])
 async def mailing(msg: Message):
     """Начинает рассылку при запущенном диалоге рассылки или останавливает диалог рассылки"""
@@ -133,7 +235,6 @@ async def collect_mailing(msg: Message):
 # @router.message(Command('ban'), F.message_thread_id)
 # async def ban_user(msg: Message):
 #     """Банит пользователя"""
-#     assert msg.message_thread_id
 #     user_id = int(msg.reply_to_message.text.rsplit('\n')[-1].split()[0])
 
 #     ...

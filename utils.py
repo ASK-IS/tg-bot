@@ -77,6 +77,12 @@ async def retry_func(func: Callable, *args, **kwargs):
         pass
 
 
+class UserFixTopic(TypedDict):
+    topic_id: int
+    msg_id: int
+    last_time: datetime
+
+
 class UserCooldown(TypedDict):
     last_time: datetime
     is_msg_sent: bool
