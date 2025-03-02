@@ -25,7 +25,6 @@ MREADY_MSG = '<b>Запущен диалог рассылки!</b>\n\nОтпра
 MALREADY_MSG = '⚠️ Диалог рассылки запущен другим пользователем!'
 EMOJI_SET = ('😊', '😉', '😇', '😌')
 
-# ADMIN_CHAT = -1002367372290  # канал
 ADMIN_CHAT = -1002393313466  # форум
 
 USERS_TOPICS: dict[int, 'UserFixTopic'] = {}

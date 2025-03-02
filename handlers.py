@@ -151,11 +151,11 @@ async def achieve_question(msg: Message):
 
 @router.message(Command('answer'), F.message_thread_id)
 @router.message(Command('ответ'), F.message_thread_id)
-@router.message(F.reply_to_message, F.message_thread_id)
+@router.message(F.reply_to_message, F.message_thread_id, ~F.quote)
 async def answer_question(msg: Message):
     """Пересылает ответ на вопрос студента"""
 
-    command_flag = '/answer' in msg.text or '/ответ' in msg.text
+    command_flag = msg.text.startswith('/answer') or msg.text.startswith('/ответ')
 
     if msg.reply_to_message.message_id == msg.message_thread_id and not command_flag:
         return
