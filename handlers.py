@@ -72,10 +72,9 @@ async def question(msg: Message):
     question_content = msg.html_text or msg.caption or ''
     text = Q_MSG.format(convert_to_mention(msg.from_user), question_content, user_id, msg_id)
     if any([msg.photo, msg.document, msg.video, msg.voice]):
-        new_msg = await bot.copy_message(ADMIN_CHAT, user_id, msg_id, thread_id, text)
+        await bot.copy_message(ADMIN_CHAT, user_id, msg_id, thread_id, text)
     else:
-        new_msg = await bot.send_message(ADMIN_CHAT, text, message_thread_id=thread_id)
-    await new_msg.pin()
+        await bot.send_message(ADMIN_CHAT, text, message_thread_id=thread_id)
 
     USERS_COOLDOWN[user_id] = {'last_time': datetime.now(), 'is_msg_sent': False}
     USERS_TOPICS[user_id] = {'topic_id': thread_id, 'msg_id': msg_id, 'last_time': datetime.now()}
@@ -172,7 +171,7 @@ async def answer_question(msg: Message):
         )
         await bot.send_message(int(user_id), answer, reply_to_message_id=int(msg_id))
     else:
-        question_text = msg.reply_to_message.text or msg.reply_to_message.captionv
+        question_text = msg.reply_to_message.text or msg.reply_to_message.caption
         try:
             user_id, msg_id = map(int, list(filter(lambda s: bool(s), question_text.split('\n')))[-1].split())
         except ValueError:
