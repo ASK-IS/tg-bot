@@ -64,13 +64,13 @@ async def question(msg: Message):
     if user_id in USERS_TOPICS and datetime.now() < USERS_TOPICS[user_id]['last_time'] + timedelta(days=1):
         thread_id = USERS_TOPICS[user_id]['topic_id']
     else:
+        mention = f"@{msg.from_user.username}" if msg.from_user.username else msg.from_user.fullname
         topic = await bot.create_forum_topic(
-            ADMIN_CHAT, f'Вопрос от {convert_to_mention(msg.from_user)}', icon_custom_emoji_id='5379748062124056162'
+            ADMIN_CHAT, f'Вопрос от {mention}', icon_custom_emoji_id='5379748062124056162'
         )
         thread_id = topic.message_thread_id
-
     question_content = msg.html_text or msg.caption or ''
-    text = Q_MSG.format(question_content, user_id, msg_id)
+    text = Q_MSG.format(convert_to_mention(msg.from_user), question_content, user_id, msg_id)
     if any([msg.photo, msg.document, msg.video, msg.voice]):
         new_msg = await bot.copy_message(ADMIN_CHAT, user_id, msg_id, thread_id, text)
     else:
@@ -158,11 +158,7 @@ async def answer_question(msg: Message):
 
     command_flag = '/answer' in msg.text or '/ответ' in msg.text
 
-    if not (
-        msg.reply_to_message.from_user.is_bot
-        and msg.reply_to_message.message_id != msg.message_thread_id
-        or command_flag
-    ):
+    if msg.reply_to_message.message_id == msg.message_thread_id and not command_flag:
         return
     if msg.text == '/answer':
         await msg.react([ReactionTypeEmoji(emoji='💩')], True)
@@ -176,7 +172,7 @@ async def answer_question(msg: Message):
         )
         await bot.send_message(int(user_id), answer, reply_to_message_id=int(msg_id))
     else:
-        question_text = msg.reply_to_message.text or msg.reply_to_message.caption
+        question_text = msg.reply_to_message.text or msg.reply_to_message.captionv
         try:
             user_id, msg_id = map(int, list(filter(lambda s: bool(s), question_text.split('\n')))[-1].split())
         except ValueError:
