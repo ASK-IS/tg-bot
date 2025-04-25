@@ -1,6 +1,6 @@
 import asyncio
 
-from aiogram.methods import DeleteWebhook
+# from aiogram.methods import DeleteWebhook
 
 from config import bot, dp
 from handlers import admin_router, router

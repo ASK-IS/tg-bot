@@ -60,9 +60,9 @@ class AdminFilter(Filter):
         return False
 
 
-def convert_to_mention(user: User):
+def convert_to_mention(user: User | None):
     """Вытаскивает упоминание пользователя из объекта User"""
-    return f'@{user.username}' if user.username else f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
+    return f'@{user.username}' if user and user.username else f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
 
 
 async def retry_func(func: Callable, *args, **kwargs):

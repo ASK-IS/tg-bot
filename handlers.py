@@ -7,22 +7,9 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, Message, ReactionTypeEmoji
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from config import (
-    ADMIN_CHAT,
-    EMOJI_SET,
-    MAILING_DIALOG,
-    MALREADY_MSG,
-    MREADY_MSG,
-    NOEDITS_MSG,
-    PENDING_MSG,
-    Q_MSG,
-    START_MSG,
-    USERS_COOLDOWN,
-    USERS_TOPICS,
-    WAIT5_MSG,
-    bot,
-)
-from utils import AdminFilter, convert_to_mention, get_unique_users, is_spam, save_unique_user
+from config import (ADMIN_CHAT, EMOJI_SET, MAILING_DIALOG, MALREADY_MSG, MREADY_MSG, NOEDITS_MSG, PENDING_MSG, Q_MSG,
+                    START_MSG, USERS_COOLDOWN, USERS_TOPICS, WAIT5_MSG, bot)
+from utils import AdminFilter, convert_to_mention, get_unique_users, is_spam, retry_func, save_unique_user
 
 router = Router()
 admin_router = Router()
@@ -64,7 +51,7 @@ async def question(msg: Message):
     if user_id in USERS_TOPICS and datetime.now() < USERS_TOPICS[user_id]['last_time'] + timedelta(days=1):
         thread_id = USERS_TOPICS[user_id]['topic_id']
     else:
-        mention = f"@{msg.from_user.username}" if msg.from_user.username else msg.from_user.fullname
+        mention = f'@{msg.from_user.username}' if msg.from_user.username else msg.from_user.full_name
         topic = await bot.create_forum_topic(
             ADMIN_CHAT, f'Вопрос от {mention}', icon_custom_emoji_id='5379748062124056162'
         )
@@ -95,6 +82,7 @@ async def edit_warning(msg: Message):
 @router.message(Command('рассмотреть'), F.message_thread_id)
 async def pending_question(msg: Message):
     """Фиксирует топик на рассмотрение"""
+    assert msg.message_thread_id
     await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5348436127038579546')
 
     user_id, msg_id = next(
@@ -112,6 +100,7 @@ async def pending_question(msg: Message):
 @router.callback_query(F.data.startswith('send'))
 async def send_pending_question(resp: CallbackQuery):
     """Отправляет шаблонное сообщение о том, что взято на рассмотрение"""
+    assert isinstance(resp.message, Message)
 
     _, user_id, msg_id, emoji_num = resp.data.split()
     await bot.send_message(int(user_id), PENDING_MSG.format(EMOJI_SET[int(emoji_num)]), reply_to_message_id=int(msg_id))
@@ -124,6 +113,8 @@ async def send_pending_question(resp: CallbackQuery):
 @router.message(Command('закрыть'), F.message_thread_id)
 async def close_question(msg: Message):
     """Закрывает вопрос"""
+    assert msg.message_thread_id
+
     await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5237699328843200968')
     await bot.close_forum_topic(ADMIN_CHAT, msg.message_thread_id)
     await msg.react([ReactionTypeEmoji(emoji='👍')])
@@ -134,6 +125,7 @@ async def close_question(msg: Message):
 @router.message(Command('переоткрыть'), F.message_thread_id)
 async def reopen_question(msg: Message):
     """Открывает вопрос"""
+    assert msg.message_thread_id
     await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5379748062124056162')
     await bot.reopen_forum_topic(ADMIN_CHAT, msg.message_thread_id)
     await msg.react([ReactionTypeEmoji(emoji='👍')])
@@ -144,6 +136,7 @@ async def reopen_question(msg: Message):
 @router.message(Command('реализовать'), F.message_thread_id)
 async def achieve_question(msg: Message):
     """Отмечает вопрос как реализованный"""
+    assert msg.message_thread_id
     await bot.edit_forum_topic(ADMIN_CHAT, msg.message_thread_id, icon_custom_emoji_id='5309958691854754293')
     await bot.close_forum_topic(ADMIN_CHAT, msg.message_thread_id)
     await msg.react([ReactionTypeEmoji(emoji='👍')])
@@ -167,7 +160,6 @@ async def answer_question(msg: Message):
         answer = msg.html_text.removeprefix('/answer').removeprefix('/ответ').strip()
         user_id, msg_id = next(
             ((uid, data['msg_id']) for uid, data in USERS_TOPICS.items() if data['topic_id'] == msg.message_thread_id),
-            (None, None),
         )
         await bot.send_message(int(user_id), answer, reply_to_message_id=int(msg_id))
     else:
@@ -211,7 +203,7 @@ async def mailing(msg: Message):
 
     await msg.react([ReactionTypeEmoji(emoji='✍️')])
     for user_id in get_unique_users():
-        await bot.copy_messages(user_id, MAILING_DIALOG['user_id'], MAILING_DIALOG['msg_ids'])
+        await retry_func(bot.copy_messages, user_id, MAILING_DIALOG['user_id'], MAILING_DIALOG['msg_ids'])
     await msg.react([ReactionTypeEmoji(emoji='👍')])
 
     MAILING_DIALOG['msg_ids'] = []
