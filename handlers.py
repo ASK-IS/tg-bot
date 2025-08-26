@@ -267,20 +267,14 @@ async def collect_mailing(msg: Message):
 async def start_contest(msg: Message):
     """Запускает конкурс"""
     assert msg.text
+    assert msg.message_thread_id
 
     if CONTEST_DIALOG['is_active']:
         await msg.react([ReactionTypeEmoji(emoji='👎')])
         return
     CONTEST_DIALOG['is_active'] = True
 
-    topic_entity = msg.text.split()[1]
-    if topic_entity.isdigit():
-        CONTEST_DIALOG['topic_id'] = int(topic_entity)
-    elif topic_entity.count('/') == 5:
-        CONTEST_DIALOG['topic_id'] = int(topic_entity.split()[-1])
-    else:
-        await msg.react([ReactionTypeEmoji(emoji='👎')])
-        return
+    CONTEST_DIALOG['topic_id'] = msg.message_thread_id
 
     await bot.edit_forum_topic(ADMIN_CHAT, CONTEST_DIALOG['topic_id'], icon_custom_emoji_id='5310228579009699834')
     await msg.react([ReactionTypeEmoji(emoji='🎉')])
@@ -320,12 +314,12 @@ async def finish_contest(msg: Message):
     else:
         await msg.reply('В конкурсе никто не принял участие... Сообщений нет 🥺')
 
-    CONTEST_DIALOG['msgs'] = []
-    CONTEST_DIALOG['topic_id'] = 0
-
     await bot.edit_forum_topic(ADMIN_CHAT, CONTEST_DIALOG['topic_id'], icon_custom_emoji_id='5312315739842026755')
     await bot.close_forum_topic(ADMIN_CHAT, CONTEST_DIALOG['topic_id'])
     await msg.react([ReactionTypeEmoji(emoji='🏆')])
+
+    CONTEST_DIALOG['msgs'] = []
+    CONTEST_DIALOG['topic_id'] = 0
 
     logging.info('Contest dialog finished')
 
