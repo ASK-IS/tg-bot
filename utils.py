@@ -92,3 +92,14 @@ class MailingDialog(TypedDict):
     user_id: int
     is_ready: bool
     msg_ids: list[int]
+
+
+class ContestMessage(TypedDict):
+    user_id: int
+    text: str
+
+
+class ContestDialog(TypedDict):
+    is_active: bool
+    topic_id: int
+    msgs: list[ContestMessage]
