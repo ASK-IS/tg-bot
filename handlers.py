@@ -176,6 +176,66 @@ async def achieve_question(msg: Message):
     await msg.react([ReactionTypeEmoji(emoji='👍')])
 
 
+@chat_router.message(Command('contest'))
+@chat_router.message(Command('giveaway'))
+@chat_router.message(Command('конкурс'))
+@chat_router.message(Command('розыгрыш'))
+async def start_contest(msg: Message):
+    """Запускает конкурс"""
+    assert msg.text
+    assert msg.message_thread_id
+
+    if CONTEST_DIALOG['is_active']:
+        await msg.react([ReactionTypeEmoji(emoji='👎')])
+        return
+    CONTEST_DIALOG['is_active'] = True
+    CONTEST_DIALOG['topic_id'] = msg.message_thread_id
+
+    await msg.react([ReactionTypeEmoji(emoji='🎉')])
+
+    logging.info('Contest dialog started')
+
+
+@chat_router.message(Command('завершить'))
+@chat_router.message(Command('стоп'))
+@chat_router.message(Command('финиш'))
+@chat_router.message(Command('stop'))
+@chat_router.message(Command('finish'))
+async def finish_contest(msg: Message):
+    """Завершает конкурс"""
+    assert msg.text
+
+    if not CONTEST_DIALOG['is_active']:
+        await msg.react([ReactionTypeEmoji(emoji='👎')])
+        return
+    CONTEST_DIALOG['is_active'] = False
+
+    rows = CONTEST_DIALOG['msgs']
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    file_path = f'contest_{timestamp}.csv'
+    try:
+        with open(file_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f, delimiter=';')
+            writer.writerow(['User ID', 'Текст сообщения'])
+            for r in rows:
+                writer.writerow([r.get('user_id', ''), (r.get('text') or '').replace('\n', ' ')])
+
+        if rows:
+            await msg.reply_document(FSInputFile(file_path), caption=f'Всего сообщений: {len(rows)}')
+        else:
+            await msg.reply('В конкурсе никто не принял участие... Сообщений нет 🥺')
+    finally:
+        if 'file_path' in locals() and os.path.exists(file_path):
+            os.remove(file_path)
+
+    await msg.react([ReactionTypeEmoji(emoji='🏆')])
+
+    CONTEST_DIALOG['msgs'] = []
+    CONTEST_DIALOG['topic_id'] = 0
+
+    logging.info('Contest dialog finished')
+
+
 @chat_router.message(Command('answer'), F.message_thread_id)
 @chat_router.message(Command('ответ'), F.message_thread_id)
 @chat_router.message(F.reply_to_message, F.message_thread_id, ~F.quote)
@@ -258,70 +318,6 @@ async def collect_mailing(msg: Message):
     """Собирает сообщения для рассылки"""
     MAILING_DIALOG['msg_ids'].append(msg.message_id)
     await msg.react([ReactionTypeEmoji(emoji='👀')])
-
-
-@chat_router.message(Command('contest'))
-@chat_router.message(Command('giveaway'))
-@chat_router.message(Command('конкурс'))
-@chat_router.message(Command('розыгрыш'))
-async def start_contest(msg: Message):
-    """Запускает конкурс"""
-    assert msg.text
-    assert msg.message_thread_id
-
-    if CONTEST_DIALOG['is_active']:
-        await msg.react([ReactionTypeEmoji(emoji='👎')])
-        return
-    CONTEST_DIALOG['is_active'] = True
-
-    CONTEST_DIALOG['topic_id'] = msg.message_thread_id
-
-    await bot.edit_forum_topic(ADMIN_CHAT, CONTEST_DIALOG['topic_id'], icon_custom_emoji_id='5310228579009699834')
-    await msg.react([ReactionTypeEmoji(emoji='🎉')])
-
-    logging.info('Contest dialog started')
-
-
-@chat_router.message(Command('завершить'))
-@chat_router.message(Command('стоп'))
-@chat_router.message(Command('финиш'))
-@chat_router.message(Command('stop'))
-@chat_router.message(Command('finish'))
-async def finish_contest(msg: Message):
-    """Завершает конкурс"""
-    assert msg.text
-
-    if not CONTEST_DIALOG['is_active']:
-        await msg.react([ReactionTypeEmoji(emoji='👎')])
-        return
-    CONTEST_DIALOG['is_active'] = False
-
-    rows = CONTEST_DIALOG['msgs']
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    file_path = f'contest_{timestamp}.csv'
-    try:
-        with open(file_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f, delimiter=';')
-            writer.writerow(['User ID', 'Текст сообщения'])
-            for r in rows:
-                writer.writerow([r.get('user_id', ''), (r.get('text') or '').replace('\n', ' ')])
-    finally:
-        if 'file_path' in locals() and os.path.exists(file_path):
-            os.remove(file_path)
-
-    if rows:
-        await msg.reply_document(FSInputFile(file_path), caption=f'Всего сообщений: {len(rows)}')
-    else:
-        await msg.reply('В конкурсе никто не принял участие... Сообщений нет 🥺')
-
-    await bot.edit_forum_topic(ADMIN_CHAT, CONTEST_DIALOG['topic_id'], icon_custom_emoji_id='5312315739842026755')
-    await bot.close_forum_topic(ADMIN_CHAT, CONTEST_DIALOG['topic_id'])
-    await msg.react([ReactionTypeEmoji(emoji='🏆')])
-
-    CONTEST_DIALOG['msgs'] = []
-    CONTEST_DIALOG['topic_id'] = 0
-
-    logging.info('Contest dialog finished')
 
 
 # @router.message(Command('ban'), F.message_thread_id)
