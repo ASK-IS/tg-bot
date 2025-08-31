@@ -62,7 +62,7 @@ jobs:
         with:
           HOST: 45.93.200.157
           USER: bot_dev
-          PORT: 2222
+          PORT: 22
           PRIVATE_KEY: ${{ secrets.BOT_DEV_SSH_PRIVATE_KEY }}
           CMD: |
             cd /srv/bots/tg-askis/app/source;
