@@ -6,7 +6,7 @@ ENV PYTHONUNBUFFERED=1 \
     NLTK_DATA=/usr/local/nltk_data
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates curl build-essential gcc \
+  && apt-get install -y --no-install-recommends bash ca-certificates curl build-essential gcc \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home --shell /bin/bash bot \
@@ -20,16 +20,13 @@ RUN python -m pip install --upgrade pip \
   && pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
-RUN chown -R bot:bot /app
+RUN sed -i '1s/^\xEF\xBB\xBF//' /app/entrypoint.sh \
+ && sed -i 's/\r$//' /app/entrypoint.sh \
+ && chmod +x /app/entrypoint.sh \
+ && chown -R bot:bot /app
 
-RUN python - <<'PY'
-import nltk
-nltk.download('punkt')
-nltk.download('stopwords')
-print('NLTK data prepared ✅')
-PY
-RUN chmod +x /app/entrypoint.sh
+RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); print('NLTK data prepared ✅')"
+
 USER bot
-WORKDIR /app
 
 ENTRYPOINT ["/app/entrypoint.sh"]
