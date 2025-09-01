@@ -25,8 +25,8 @@ RUN sed -i '1s/^\xEF\xBB\xBF//' /app/entrypoint.sh \
  && chmod +x /app/entrypoint.sh \
  && chown -R bot:bot /app
 
-RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords'); print('NLTK data prepared ✅')"
+RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 
 USER bot
 
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "/app/entrypoint.sh"]
