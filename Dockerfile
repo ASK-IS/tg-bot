@@ -28,7 +28,7 @@ nltk.download('punkt')
 nltk.download('stopwords')
 print('NLTK data prepared ✅')
 PY
-
+RUN chmod +x /app/entrypoint.sh
 USER bot
 WORKDIR /app
 
