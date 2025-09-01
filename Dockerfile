@@ -22,11 +22,11 @@ RUN python -m pip install --upgrade pip \
 COPY . /app
 RUN chown -R bot:bot /app
 
-RUN python - <<'PY'\n\
-import nltk\n\
-nltk.download('punkt_tab')\n\
-nltk.download('stopwords')\n\
-print('NLTK data prepared ✅')\n\
+RUN python - <<'PY'
+import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
+print('NLTK data prepared ✅')
 PY
 
 USER bot
