@@ -30,43 +30,43 @@ jobs:
       - name: Lint (style)
         run: flake8 . --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
 
-  # build-and-push:
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   needs: test
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: docker/setup-buildx-action@v3
-  #     - name: Log in to GHCR (via PAT)
-  #       uses: docker/login-action@v3
-  #       with:
-  #         registry: ghcr.io
-  #         username: 'ASK-IS'
-  #         password: ${{ secrets.GHCR_PUSH_TOKEN }}
-  #     - name: Build & Tag
-  #       run: |
-  #         OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-  #         IMAGE="ghcr.io/${OWNER}/tg-askis"   
-  #         docker build -t $IMAGE:latest -f ./Dockerfile .
-  #         docker tag $IMAGE:latest $IMAGE:${{ github.run_number }}
-  #         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-  #     - name: Push
-  #       run: |
-  #         docker push $IMAGE:latest
-  #         docker push $IMAGE:${{ github.run_number }}
-  deploy:
+  build-and-push:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
     runs-on: ubuntu-latest
     steps:
-      - name: Execute SSH Commands
-        uses: GPTED/SSH-My-Action@0.1
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR (via PAT)
+        uses: docker/login-action@v3
         with:
-          HOST: 45.93.200.157
-          USER: bot_dev
-          PORT: 22
-          PRIVATE_KEY: ${{ secrets.BOT_DEV_SSH_PRIVATE_KEY }}
-          CMD: |
-            cd /srv/bots/tg-askis/app/source;
-            git reset --hard HEAD;
-            git pull;
-            cd /srv/bots/tg-askis;
-            podman-compose up -d --build --force-recreate;
+          registry: ghcr.io
+          username: 'ASK-IS'
+          password: ${{ secrets.GHCR_PUSH_TOKEN }}
+      - name: Build & Tag
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="ghcr.io/${OWNER}/tg-askis"   
+          docker build -t $IMAGE:latest -f ./Dockerfile .
+          docker tag $IMAGE:latest $IMAGE:${{ github.run_number }}
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      - name: Push
+        run: |
+          docker push $IMAGE:latest
+          docker push $IMAGE:${{ github.run_number }}
+  # deploy:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Execute SSH Commands
+  #       uses: GPTED/SSH-My-Action@0.1
+  #       with:
+  #         HOST: 45.93.200.157
+  #         USER: bot_dev
+  #         PORT: 22
+  #         PRIVATE_KEY: ${{ secrets.BOT_DEV_SSH_PRIVATE_KEY }}
+  #         CMD: |
+  #           cd /srv/bots/tg-askis/app/source;
+  #           git reset --hard HEAD;
+  #           git pull;
+  #           cd /srv/bots/tg-askis;
+  #           podman-compose up -d --build --force-recreate;
