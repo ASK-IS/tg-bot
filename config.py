@@ -14,7 +14,7 @@ logging.basicConfig(
     format='[%(asctime)s] - %(levelname)s\t| %(message)s',
     force=True,
     level=logging.INFO,
-    filename='logs.log',
+    filename='/app/data/logs.log',
     filemode='a',
 )
 
